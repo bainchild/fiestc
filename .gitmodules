@@ -1,0 +1,3 @@
+[submodule "FiThree"]
+	path = FiThree
+	url = https://github.com/bainchild/FiThree.git
