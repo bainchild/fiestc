@@ -19,6 +19,7 @@ local lua_pushinteger = _D['lua_pushinteger'] or ____C.Uninitialized();
 local lua_pushlstring = _D['lua_pushlstring'] or ____C.Uninitialized();
 local lua_pushstring = _D['lua_pushstring'] or ____C.Uninitialized();
 local lua_pushcclosure = _D['lua_pushcclosure'] or ____C.Uninitialized();
+local lua_getallocf = _D['lua_getallocf'] or ____C.Uninitialized();
 local lua_gettable = _D['lua_gettable'] or ____C.Uninitialized();
 local lua_getfield = _D['lua_getfield'] or ____C.Uninitialized();
 local lua_createtable = _D['lua_createtable'] or ____C.Uninitialized();
@@ -59,7 +60,10 @@ function _D.mp_realloc(L, target, osize, nsize)
 end; mp_realloc = _D['mp_realloc']
 function _D.mp_buf_new(L)
    local buf = (function() local _ = (____C.Cst(0)); return _ end)();
-   ____C.Set(buf, (function() local _ = (mp_realloc(L, (function() local _ = (____C.Cst(0)); return _ end)(), ____C.Cst(0), ____C.SizeOfValue(____C.Ptr(buf)))); return _ end)());
+   ____C.Set(buf, (function()
+      local _ = (mp_realloc(L, (function() local _ = (____C.Cst(0)); return _ end)(), ____C.Cst(0), ____C.SizeOfValue(____C.Ptr(buf))));
+      return _
+   end)());
    ____C.Set(____C.Deref(buf).b, (function() local _ = (____C.Cst(0)); return _ end)());
    ____C.Set(____C.Deref(buf).len, ____C.Set(____C.Deref(buf).free, ____C.Cst(0)));
    do return (buf) end;
@@ -497,26 +501,27 @@ function _D.mp_safe(L)
       do return (____C.Cst(2)) end;
    end;
 end; mp_safe = _D['mp_safe']
+-- TODO: FIX THIS!!!
 cmds = ____C.List({
    ____C.List({
       ____C.Str("pack"),
       mp_pack,
-   }),
+   },false),
    ____C.List({
       ____C.Str("unpack"),
       mp_unpack,
-   }),
+   },false),
    ____C.List({
       ____C.Str("unpack_one"),
       mp_unpack_one,
-   }),
+   },false),
    ____C.List({
       ____C.Str("unpack_limit"),
       mp_unpack_limit,
-   }),
+   },false),
    ____C.List({
       ____C.Cst(0),
-   }),
+   },false),
 });
 function _D.luaopen_create(L)
    local i = ____C.Uninitialized();
@@ -524,12 +529,22 @@ function _D.luaopen_create(L)
 
    ____C.Set(i, ____C.Cst(0))
    while (i < ____C.SizeOfValue(cmds) / ____C.SizeOfValue(____C.Ptr(cmds)) - ____C.Cst(1)) do
-      lua_pushcclosure(L, cmds[i].func, ____C.Cst(0));
-      lua_setfield(L, -____C.Cst(2), cmds[i].name);
+      -- manually fixing this because
+      -- I can't figure out how to fix
+      -- it in lilac
+      -- note that the screenshot was
+      -- taken before this, and it actually
+      -- wasn't working 100%, which led to me
+      -- not running into this issue
+      
+      -- lua_pushcclosure(L, cmds[i].func, ____C.Cst(0));
+      -- lua_setfield(L, -____C.Cst(2), cmds[i].name);
+      lua_pushcclosure(L, cmds[i][1], ____C.Cst(0));
+      lua_setfield(L, -____C.Cst(2), cmds[i][0]);
       (function() local _ = i; ____C.Set(i, i + 1); return _ end)()
    end;
    lua_pushstring(L, ____C.Str("" .. "cmsgpack"));
-   lua_setfield(L, -____C.Cst(2), ____C.Str("_NAME"));
+   lua_setfield(L, -____C.Cst(2), ____C.Str("_NAME")); -- ITSHERE:
    lua_pushstring(L, ____C.Str("" .. "lua-cmsgpack 0.4.0"));
    lua_setfield(L, -____C.Cst(2), ____C.Str("_VERSION"));
    lua_pushstring(L, ____C.Str("" .. "Copyright (C) 2012, Salvatore Sanfilippo"));
