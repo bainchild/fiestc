@@ -3,3 +3,4 @@ A project combining [a modified FiThree](https://github.com/bainchild/FiThree), 
 to build AND INTEGRATE C lua modules into pure lua code, to achieve true lua bliss.  
 Still mostly unimplemented, + a lot of bugs (probably), but so far, I've gotten this to work:
 ![demo](https://github.com/bainchild/overarch/blob/master/Screenshot%20from%202024-01-26%2001-32-35.png?raw=true)
+<sub>also it'd be cool to make a luajit ffi library equivalent.</sub>
