@@ -51,17 +51,17 @@ return function(fi3)
       return v
    end
    l.lua_gettop = wrap(function(arg)
-      local L = arg[1]
+      local L = arg[1][C.Escape]
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       return C.Obj(state.top())
    end,false)
    l.lua_settop = wrap(function(arg)
-      local L,i = arg[1],arg[2]
+      local L,i = arg[1][C.Escape],arg[2]
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       state.top(rawget(i,"real"))
    end)
    l.lua_pushvalue = wrap(function(arg)
-      local L,i = arg[1],arg[2]
+      local L,i = arg[1][C.Escape],arg[2]
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       if i<0 then
          push(L,L.stack[state.top()-i])
@@ -70,11 +70,11 @@ return function(fi3)
       end
    end)
    l.lua_pushnil = wrap(function(arg)
-      local L = arg[1]
+      local L = arg[1][C.Escape]
       push(L,nil)
    end)
    local pushabsval = wrap(function(arg)
-      local L,v = arg[1],arg[2]
+      local L,v = arg[1][C.Escape],arg[2]
       push(L,v)
    end)
    l.lua_pushnumber = pushabsval
@@ -82,7 +82,7 @@ return function(fi3)
    l.lua_pushlstring = pushabsval
    l.lua_pushstring = pushabsval
    l.lua_pushcclosure = wrap(function(arg)
-      local L,c,uvals = arg[1],arg[2],arg[3]
+      local L,c,uvals = arg[1][C.Escape],arg[2],arg[3]
       if c==nil then print(debug.traceback("no c function")) end
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       local nopen = #state.upvals;
@@ -104,11 +104,11 @@ return function(fi3)
       ---@diagnostic disable-next-line: unused-vararg
       push(L,function(...)
          ---@diagnostic disable-next-line: need-check-nil
-         c(L)
+         c(C.Ptr(C.EmptyObj(L,4)))
       end)
    end)
    l.lua_getallocf = wrap(function(arg)
-      local L,ud = arg[1],arg[2]
+      local L,ud = arg[1][C.Escape],arg[2]
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       if state.frealloc == nil then
          state.frealloc = wrap(function(arg)
@@ -127,32 +127,37 @@ return function(fi3)
       if state.frealloc_ud == nil then state.frealloc_ud = 0 end
       if ud~=0 then
          -- print("frealloc c.set",require("inspect")({ud, C.Ptr(ud),C.Obj(state.frealloc_ud)}))
-         C.Set(C.Ptr(ud),C.Obj(state.frealloc_ud))
+         C.Set(ud,C.Obj(state.frealloc_ud))
       end
       return state.frealloc
    end,false,true)
    l.lua_createtable = wrap(function(arg)
-      local L = arg[1]
+      local L = arg[1][C.Escape]
       push(L,{})
    end)
    l.lua_checkstack = wrap(function(arg)
-      local L, i = arg[1],arg[2]
+      local L, i = arg[1][C.Escape],arg[2]
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       return 250-state.top() >= i
    end)
    l.lua_setfield = wrap(function(arg)
-      local L,i,k = arg[1],arg[2],arg[3]
+      local L,i,k = arg[1][C.Escape],arg[2],arg[3]
+      -- print("BEFORE k",C.Object.is(k),C.Pointer.is(k)," = ",require("inspect")(k),"BEFORE")
       if C.Object.is(k) then k=rawget(k,"real"); end
       if C.Pointer.is(k) then
-         -- local ork=k;
-         -- local org=rawget(k,"obj");
-         k=C.Read("char[]",rawget(k,"addr"));
-         -- if org~=k then
-         --    require('debugger')()
-         --    print(rawget(ork,"addr"),C.MemDump())
-         --    error("fatality")
-         -- end
+         if k==C.NULL then
+            if rawget(k,"obj")~=nil and C.Object.is(rawget(k,"obj")) then
+               k=rawget(k,"obj")
+            else
+               error("lua_setfield: attempt to use a null pointer for table key")
+            end
+         end
       end
+      -- print("1.5k ",C.Object.is(k),C.Pointer.is(k),require("inspect")(k),require("inspect")(C.AddressOf(k)))
+      if C.Pointer.is(k) or C.Object.is(k) then
+         k=C.Read("char[]",rawget(C.AddressOf(k),"obj"));
+      end
+      -- print("AFTER k",C.Object.is(k),C.Pointer.is(k)," = ",require("inspect")(k),"AFTER")
       local state = assert((fi3.get_state_from_frame(L)),"Bad state.")
       -- print(L.stack~=nil,(i<0 and state.top()+i) or i,L.stack[(i<0 and state.top()+i) or i])
       L.stack[(i<0 and state.top()+i) or i][k:sub(1,-2)] = pop(L)

@@ -52,5 +52,5 @@ for i,v in next, lb do
    C.env[i]=v
 end
 local _D = require('testing.lua_cmsgpack')
-_G.lua_cmsgpack = target_frame.stack[_D["luaopen_create"](C.Ptr(target_frame))[C.Escape]-1]
+_G.lua_cmsgpack = target_frame.stack[_D["luaopen_create"](C.Ptr(C.EmptyObj(target_frame,4)))[C.Escape]-1]
 fi3.luaV_execute(target_frame)

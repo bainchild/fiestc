@@ -1,4 +1,5 @@
 local cmsgpack = _G.lua_cmsgpack
+print(cmsgpack)
 for i,v in next, cmsgpack do
-   print(i,v)
+   print("\t",i,v)
 end
