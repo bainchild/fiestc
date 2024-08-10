@@ -17,7 +17,7 @@ local io = require 'io'
 local unpack = unpack or table.unpack
 
 -- Debugging
-local DEBUG = true
+local DEBUG = false
 if DEBUG then pcall(require,'strict') end
 
 -- luacheck: globals cparser
