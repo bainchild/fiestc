@@ -8,10 +8,15 @@
 
 
 -- standard libs
-local string = require 'string'
-local coroutine = require 'coroutine'
-local table = require 'table'
-local io = require 'io'
+local string = string or require 'string'
+local coroutine = coroutine or require 'coroutine'
+local table = table or require 'table'
+local io = io or setmetatable({},{__index=function(_,b)
+   error("io not available")
+end})
+ -- ^ here because of luau cli being too sandboxed to be what lua was originally
+ -- supposed to be, a scripting language
+ -- local io = require 'io'
 
 -- Lua 5.1 to 5.3 compatibility
 local unpack = unpack or table.unpack
@@ -282,7 +287,7 @@ end
 
 local function evalLuaExpression(s)
    assert(type(s)=='string')
-   local f = load(string.gmatch(s,".*"))
+   local f = (loadstring or load)(s)
    local function r(status,...)
       if status then return ... end end
    return r(pcall(f or error))

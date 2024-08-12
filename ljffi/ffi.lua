@@ -1,3 +1,4 @@
+local unpack = unpack or table.unpack
 local function split(a,b)
    local m = {}
    for mat in a:gmatch("(.-)"..b) do
@@ -48,6 +49,7 @@ local function sizeof(a)
    end
    error("no such type",a)
 end
+types["char"] = {type="number",size=1,integral=true}
 types["int"] = {type="number",size=4,integral=true}
 types["short int"] = {type="number",size=2,integral=true}
 types["long int"] = {type="number",size=4,integral=true} -- 8 bytes on x86_64
@@ -90,11 +92,18 @@ local function cdef(input,namespace)
       end
    end
 end
--- TODO: allocate + deallocate
+-- TODO: we need these to not have to deal with
+-- virtual memory modification on the library-user side
+-- (should automatically allocate arguments, not require you to)
+local malloc,free
+local function allocatestr(a)
+   return a
+end
 local function allocate(a)
    return a
 end
 local function typecast(a,b)
+   -- print("typecast",a,b)
    if b:sub(1,1)=="*" then
       return true,allocate(a)
    end
@@ -102,7 +111,7 @@ local function typecast(a,b)
       b=b:sub(10)
    end
    local v = nil
-   if b=="int" or b=="short int" or b=="long int" then
+   if b=="char" or b=="int" or b=="short int" or b=="long int" then
       v = tonumber(a)
    elseif b=="char[]" or b=="char["..variable_length_identifier.."]" then
       v = tostring(a).."\0"
@@ -137,7 +146,7 @@ local function typecastctl(a,b)
    -- end
    return a
 end
-local function initialize_func(typ,name)
+local function initialize_func(typ,name,func)
    return function(...)
       local args = {...}
       local argc = select("#",...) -- needed
@@ -152,7 +161,7 @@ local function initialize_func(typ,name)
       for i=1,argc do
          newargs[i]=tostring(args[i])
       end
-      local ret = typecastctl(nil,typ.return_)
+      local ret = typecastctl(func(unpack(args)),typ.return_)
       print("[C] "..name.."("..table.concat(newargs,", ")..")"..(typ.return_~="void" and " -> ("..tostring(ret).." as "..typ.return_..")" or ""))
       return ret
    end
@@ -160,7 +169,7 @@ end
 local function initialize_var(typ,name)
    error("TODO: variable initialization")
 end
-local function namespace(ns)
+local function namespace(ns,vals)
    local mt = {}
    function mt:__index(i)
       assert(type(i)=="string","Attempt to index namespace with "..type(i))
@@ -168,8 +177,10 @@ local function namespace(ns)
       if ns[i] then
          -- print("Initializing "..tostring(i))
          local typ,val = ns[i],nil
+         -- for i,v in next, typ do print(i,v) end
+         -- assert(vals[i]~=nil,"Attempt to define a nil value") -- not active cause it's an environment bug
          if typ.type == "function" then
-            val=initialize_func(typ,i)
+            val=initialize_func(typ,i,vals[i])
          elseif typ.type == "number" or typ.type == "pointer" then
             val=initialize_var(typ,i)
          else
@@ -192,9 +203,14 @@ local function namespace(ns)
    end
    return setmetatable({},mt)
 end
-local global_namespace = {}
-local ffi = {C=namespace(global_namespace),os="Linux",arch="x64"}
+-- builtins go here
+local global_namespace_types = {
+   ["sizeof"]={type="function",parameters={"*char[]"},variadic=false,return_="size_t",size=1};
+}
+local global_namespace_vals = {sizeof=sizeof}
+local ffi = {C=namespace(global_namespace_types,global_namespace_vals),os="Linux",arch="x64",_C_types=global_namespace_types,_C_vals=global_namespace_vals}
 function ffi.cdef(def)
-   cdef(def,global_namespace)
+   cdef(def,global_namespace_types)
 end
+ffi.sizeof = sizeof
 return ffi
